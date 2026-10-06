@@ -2,6 +2,7 @@ node_modules/
 *.log
 state.json
 dist/
+payload/
 debug_metrics.json
 debug_render.png
 Thumbs.db

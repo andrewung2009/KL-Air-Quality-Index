@@ -1,11 +1,12 @@
 {
   "name": "aqi-overlay",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Always-on-top desktop AQI overlay widget for Kuala Lumpur (IQAir, no API key)",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "check": "node --check defaults.js && node --check main.js && node --check fetcher.js && node --check renderer.js && node --check preload.js && node --check debug_capture.js",
+    "check": "node --check defaults.js && node --check main.js && node --check fetcher.js && node --check renderer.js && node --check preload.js && node --check debug_capture.js && node --check scripts/build.js",
+    "dist": "npm run check && node scripts/build.js",
     "test:fetch": "node fetcher.js"
   },
   "repository": {
