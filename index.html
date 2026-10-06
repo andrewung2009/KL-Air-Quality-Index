@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; script-src 'self'" />
+    <title>AQI</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="card" class="card" data-state="loading">
+      <div class="row row-top drag">
+        <span id="badge" class="badge">IQAir</span>
+        <span class="spacer"></span>
+        <span id="time" class="time">--:--</span>
+        <span id="stale" class="stale" title="Data is stale" hidden>&#9679;</span>
+      </div>
+      <div class="row row-main">
+        <span id="aqi" class="aqi">--</span>
+        <span class="unit">US&nbsp;AQI</span>
+        <span class="spacer"></span>
+      </div>
+      <div class="row row-bottom">
+        <span id="pm" class="pm">PM2.5 -- µg/m³</span>
+        <span class="spacer"></span>
+        <span id="error" class="error" hidden></span>
+        <span id="category" class="category">Loading…</span>
+      </div>
+    </div>
+    <script src="renderer.js"></script>
+  </body>
+</html>

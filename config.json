@@ -1,0 +1,14 @@
+{
+  "url": "https://www.iqair.com/air-quality/malaysia/kuala-lumpur/kuala-lumpur",
+  "refreshMinutes": 10,
+  "staleMinutes": 20,
+  "position": "bottom-right",
+  "inset": 16,
+  "width": 224,
+  "height": 96,
+  "timeZone": "Asia/Kuala_Lumpur",
+  "fallbacks": true,
+  "clickThrough": false,
+  "transparent": false,
+  "focusable": true
+}
