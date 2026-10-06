@@ -1,0 +1,8 @@
+node_modules/
+*.log
+state.json
+dist/
+debug_metrics.json
+debug_render.png
+Thumbs.db
+.DS_Store
