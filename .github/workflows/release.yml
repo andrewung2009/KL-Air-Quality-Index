@@ -37,11 +37,13 @@ jobs:
           $exe = "dist/KL-AQI.exe"
           $sha = (Get-FileHash $exe -Algorithm SHA256).Hash.ToLower()
           $mb = [math]::Round((Get-Item $exe).Length / 1MB, 1)
+          $downloadLine = '1. Download `KL-AQI.exe` (~' + $mb + ' MB).'
+          $shaLine = '- SHA-256: `' + $sha + '`'
           $lines = @(
             '**KL AQI** - an always-on-top Windows widget showing the live Kuala Lumpur US AQI (IQAir, no API key).',
             '',
             '### Download and run',
-            '1. Download `KL-AQI.exe` (~' + $mb + ' MB).',
+            $downloadLine,
             '2. Double-click it - that''s it. The widget opens right away; the first run also installs to `%LOCALAPPDATA%\KL AQI` and creates **Desktop** and **auto-start** shortcuts (no admin rights needed).',
             '3. **Updating**: just run the new `KL-AQI.exe` - it stops the running copy and replaces the installed files in place.',
             '',
@@ -50,7 +52,7 @@ jobs:
             '- Hotkeys: `Ctrl+Alt+H` show/hide - `Ctrl+Alt+A` click-through - `Ctrl+Alt+R` refresh',
             '- Runtime state and logs live in `%APPDATA%\aqi-overlay`',
             '- Unsigned build - if SmartScreen appears choose *More info > run anyway*',
-            '- SHA-256: `' + $sha + '`',
+            $shaLine,
             '',
             '[Source code](https://github.com/andrewung2009/KL-Air-Quality-Index)'
           )
