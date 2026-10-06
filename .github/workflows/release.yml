@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -13,13 +14,16 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 20
           cache: npm
+
+      - name: Install NSIS
+        run: choco install nsis -y --no-progress
 
       - name: Install dependencies
         run: npm ci
@@ -53,6 +57,7 @@ jobs:
           Set-Content -Path dist/RELEASE_BODY.md -Value ($lines -join "`n") -Encoding utf8
 
       - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           files: dist/KL-AQI.exe
