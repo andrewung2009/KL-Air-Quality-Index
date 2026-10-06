@@ -8,11 +8,12 @@
   </head>
   <body>
     <div id="card" class="card" data-state="loading">
-      <div class="row row-top drag">
+      <div class="row row-top">
         <span id="badge" class="badge">IQAir</span>
         <span class="spacer"></span>
         <span id="time" class="time">--:--</span>
         <span id="stale" class="stale" title="Data is stale" hidden>&#9679;</span>
+        <span id="error" class="error" hidden></span>
       </div>
       <div class="row row-main">
         <span id="aqi" class="aqi">--</span>
@@ -22,7 +23,6 @@
       <div class="row row-bottom">
         <span id="pm" class="pm">PM2.5 -- µg/m³</span>
         <span class="spacer"></span>
-        <span id="error" class="error" hidden></span>
         <span id="category" class="category">Loading…</span>
       </div>
     </div>

@@ -30,6 +30,11 @@ body {
   background: var(--card-color);
   color: var(--card-text);
   border: 1px solid rgba(255, 255, 255, 0.28);
+  -webkit-app-region: drag;
+}
+
+body[data-clickthrough="true"] .card {
+  -webkit-app-region: no-drag;
 }
 
 .card[data-state="loading"] {
@@ -44,11 +49,6 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-}
-
-.drag {
-  -webkit-app-region: drag;
-  cursor: grab;
 }
 
 .spacer {
@@ -80,14 +80,24 @@ body {
 
 .stale {
   font-size: 9px;
+  font-weight: 700;
   color: #fff;
   text-shadow: 0 0 4px rgba(0, 0, 0, 0.6);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex-shrink: 0;
   animation: blink 1.6s step-start infinite;
 }
 
 @keyframes blink {
   50% {
     opacity: 0.25;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stale {
+    animation: none;
   }
 }
 
@@ -140,9 +150,13 @@ body {
 
 .error {
   font-size: 9px;
-  font-weight: 600;
-  color: #ffd7d7;
-  max-width: 96px;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.45);
+  padding: 1px 5px;
+  border-radius: 4px;
+  max-width: 84px;
+  flex-shrink: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

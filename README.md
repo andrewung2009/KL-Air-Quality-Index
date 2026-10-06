@@ -24,13 +24,17 @@ rights, no wizard, no dependencies.
 
 ## Features
 
-- **Always on top** — pinned to the bottom-right corner, draggable, frameless 224×96 card
+- **Always on top** — pinned to a screen corner (all four corners supported), draggable, frameless 224×96 card
 - **Live US AQI + PM2.5** with colour-coded category (Good → Hazardous) and local time
 - **No API key** — scrapes the IQAir observation from the public page's structured data
-- **Resilient fetch chain** — IQAir → jina reader proxy → Open-Meteo (clearly labelled `est.`)
-- **System tray icon** — hide/show, live reading, *Refresh now*, quit
+- **Resilient fetch chain** — IQAir → jina reader proxy → Open-Meteo (clearly labelled `est.`),
+  bounded by a 90-second deadline and a circuit breaker that stops hammering a blocked source
+- **Works offline** — the last reading is cached and re-shown on restart with a live age badge (`42m`, `2h 05m`)
+- **Wakes with the machine** — refreshes immediately after sleep/resume and re-anchors when displays change
+- **System tray icon** — left-click hides/shows, right-click menu has the live reading, *Refresh now*,
+  click-through, position corner and refresh interval
 - **Hotkeys** — toggle visibility, toggle click-through, force refresh (work even while hidden)
-- **Remembers state** — stays hidden or visible across restarts (`state.json`)
+- **Remembers state** — visibility, click-through, position and cached reading survive restarts
 - **Single instance** — relaunching shows the existing widget instead of a second copy
 - **Optional auto-start** — drop the shortcut into `shell:startup`
 
@@ -45,9 +49,10 @@ npm install
 npm start
 ```
 
-Sanity-check the data pipeline on its own:
+Sanity-check the sources and the data pipeline:
 
 ```bash
+npm run check     # syntax-check every source file
 npm run test:fetch
 ```
 
@@ -60,18 +65,24 @@ npm run test:fetch
 | `Ctrl+Alt+R` | Refresh now |
 
 Right-clicking the widget opens a menu (Refresh, Hide, click-through, Quit), and the tray
-icon offers the same controls plus the current reading.
+icon offers the same controls plus position/interval pickers and the current reading.
+Left-clicking the tray icon hides or shows the widget.
 
 ## Data sources
 
 The fetcher tries each source in order until one succeeds (3 attempts with jittered backoff
-on the first source):
+on the first source), all inside a **90-second budget** so a hung request can never stall the
+widget. After 3 consecutive primary failures the IQAir source is skipped for 30 minutes
+(circuit breaker) and the fallbacks are tried first — a manual refresh bypasses it:
 
 1. **IQAir page** (primary) — parses the `ld+json` `Observation` node for US AQI and PM2.5.
    Detected and skipped when IQAir returns `429` or its bot-challenge page.
 2. **`r.jina.ai` reader** — fetches the same page through a text-extraction proxy.
-3. **Open-Meteo Air Quality API** — modelled estimate, shown with an `est.` badge so you
-   always know when the number is not a measurement.
+3. **Open-Meteo Air Quality API** — modelled estimate for the coordinates in `config.json`,
+   shown with an `est.` badge so you always know when the number is not a measurement.
+
+Failures are reported as short labels (`no network`, `rate limited`, `site blocked us`, …)
+with the full diagnostic available on hover.
 
 Categories follow the **US AQI** breakpoints (Good 0–50 → Hazardous 301+), each with its
 standard colour and an accessibility-safe text contrast.
@@ -83,9 +94,10 @@ Edit `config.json` (restart to apply):
 | Key | Default | Meaning |
 | --- | --- | --- |
 | `url` | IQAir Kuala Lumpur | Page to read |
+| `latitude` / `longitude` | `3.139` / `101.6869` | Coordinates used by the Open-Meteo fallback |
 | `refreshMinutes` | `10` | Refresh cadence |
 | `staleMinutes` | `20` | After this, the reading is flagged stale |
-| `position` | `bottom-right` | Anchor corner |
+| `position` | `bottom-right` | Anchor corner: `bottom-right`, `top-right`, `bottom-left`, `top-left` |
 | `inset` | `16` | Distance from the screen edge (px) |
 | `width` / `height` | `224` / `96` | Widget size |
 | `timeZone` | `Asia/Kuala_Lumpur` | Timestamps shown in this zone |
@@ -93,7 +105,17 @@ Edit `config.json` (restart to apply):
 | `clickThrough` | `false` | Start in click-through mode |
 | `transparent` / `focusable` | `false` / `true` | Window rendering options |
 
-Runtime state (visibility preference) lives in `state.json` beside it.
+Malformed or out-of-range values fall back to their defaults instead of crashing the app —
+the warning is written to the log.
+
+### Runtime state
+
+Visibility, click-through, position, refresh interval and the cached reading live in
+`state.json` inside the user data folder (`%APPDATA%\aqi-overlay\state.json`; a copy beside
+the exe is migrated on first run). Values under `overrides` there take precedence over
+`config.json`, so tray-made changes win — delete `state.json` to go back to your config file.
+
+Timestamped logs are appended to `%APPDATA%\aqi-overlay\app.log`.
 
 ## Building the standalone Windows app
 
@@ -104,7 +126,7 @@ from the [Releases](../../releases) page. To rebuild it from source you need
 ```bash
 # 1. Stage a clean payload (Electron runtime + app files, no runtime state)
 #    %LOCALAPPDATA%\electron\Cache\...\electron-vXX-win32-x64.zip  ->  payload\
-#    + package.json main.js preload.js renderer.js fetcher.js index.html
+#    + package.json main.js preload.js renderer.js fetcher.js defaults.js index.html
 #      styles.css config.json tray.png, with electron.exe renamed to "KL AQI.exe"
 
 # 2. Compile the one-click exe (installs to %LOCALAPPDATA%, adds shortcuts, launches)
@@ -118,7 +140,8 @@ makensis /DPAYLOAD_DIR=payload /DICON_FILE=icon.ico /DOUT_FILE=KL-AQI.exe packag
 
 ```
 aqi-overlay/
-├── main.js          # BrowserWindow, tray, scheduler, hotkeys, IPC
+├── main.js          # BrowserWindow, tray, scheduler, hotkeys, IPC, state
+├── defaults.js      # Config defaults, loading, validation, overrides
 ├── fetcher.js       # 3-source fetch chain + AQI classification
 ├── renderer.js      # DOM updates for ok / loading / error / stale states
 ├── preload.js       # Context-isolated bridge (onUpdate, getState, …)

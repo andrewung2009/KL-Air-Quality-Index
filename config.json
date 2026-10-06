@@ -1,5 +1,7 @@
 {
   "url": "https://www.iqair.com/air-quality/malaysia/kuala-lumpur/kuala-lumpur",
+  "latitude": 3.139,
+  "longitude": 101.6869,
   "refreshMinutes": 10,
   "staleMinutes": 20,
   "position": "bottom-right",

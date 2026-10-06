@@ -11,9 +11,37 @@ const els = {
   error: document.getElementById('error')
 };
 
-let settings = { staleMinutes: 20, timeZone: 'Asia/Kuala_Lumpur' };
+let settings = { staleMinutes: 20, timeZone: 'Asia/Kuala_Lumpur', clickThrough: false };
+let lastPayload = null;
 
 const SOURCE_LABELS = { iqair: 'IQAir', proxy: 'proxy', est: 'est.' };
+
+const ERROR_LABELS = [
+  [/ENOTFOUND|ECONNREFUSED|ECONNRESET|EAI_AGAIN|fetch failed|network/i, 'no network'],
+  [/deadline|timed?[- ]?out|TIMEOUT/i, 'timed out'],
+  [/429|rate limit/i, 'rate limited'],
+  [/checkpoint|truncated page|Vercel/i, 'site blocked us'],
+  [/JSON-LD|pattern not found|observation/i, 'page changed'],
+  [/HTTP 5\d\d/i, 'source down'],
+  [/circuit open/i, 'source paused']
+];
+
+function friendlyError(raw) {
+  const msg = String(raw || 'error');
+  for (const [pattern, label] of ERROR_LABELS) {
+    if (pattern.test(msg)) return label;
+  }
+  return 'failed';
+}
+
+function formatAge(ms) {
+  const total = Math.max(0, Math.floor(ms / 60000));
+  if (total < 1) return 'now';
+  if (total < 60) return total + 'm';
+  const hours = Math.floor(total / 60);
+  const minutes = total % 60;
+  return hours + 'h' + (minutes ? ' ' + minutes + 'm' : '');
+}
 
 function formatObserved(observedAt) {
   if (!observedAt) return '--:--';
@@ -40,22 +68,47 @@ function isStale(data) {
   return ageMs > (settings.staleMinutes || 20) * 60 * 1000;
 }
 
+function applyClickThrough() {
+  document.body.dataset.clickthrough = settings.clickThrough ? 'true' : 'false';
+}
+
+function showError(raw) {
+  els.error.hidden = false;
+  els.error.textContent = friendlyError(raw);
+  els.error.title = String(raw || '');
+}
+
+function hideError() {
+  els.error.hidden = true;
+  els.error.textContent = '';
+  els.error.title = '';
+}
+
 function render(payload) {
+  if (payload) lastPayload = payload;
   if (payload && payload.settings) settings = payload.settings;
+  applyClickThrough();
 
   const data = payload && (payload.data || payload.lastGood);
-  const failed = payload && payload.ok === false;
+  const failed = Boolean(payload && payload.ok === false);
+  const hasError = failed && Boolean(payload && payload.error);
 
-  if (!data) {
-    els.card.dataset.state = 'error';
+  if (!data || !data.category) {
+    els.card.dataset.state = failed ? 'error' : 'loading';
     els.aqi.textContent = '--';
     els.category.hidden = true;
     els.pm.textContent = 'PM2.5 -- µg/m³';
     els.time.textContent = '--:--';
     els.badge.textContent = 'AQI';
-    els.error.hidden = false;
-    els.error.textContent = failed ? (payload.error || 'error').slice(0, 46) : 'starting…';
+    els.badge.dataset.source = '';
     els.stale.hidden = true;
+    if (hasError) {
+      showError(payload.error);
+    } else {
+      els.error.hidden = false;
+      els.error.textContent = failed ? '' : 'starting…';
+      els.error.title = '';
+    }
     return;
   }
 
@@ -65,7 +118,7 @@ function render(payload) {
 
   els.aqi.textContent = String(data.aqi);
   els.category.textContent = data.category.short || data.category.label;
-  els.category.hidden = failed;
+  els.category.hidden = false;
   els.pm.textContent =
     data.pm25 === null || data.pm25 === undefined
       ? 'PM2.5 -- µg/m³'
@@ -74,10 +127,21 @@ function render(payload) {
   els.badge.textContent = SOURCE_LABELS[data.source] || data.source;
   els.badge.dataset.source = data.source;
 
-  const stale = isStale(data) || failed;
-  els.stale.hidden = !stale;
-  els.error.hidden = !failed;
-  els.error.textContent = failed ? String(payload.error || '').slice(0, 46) : '';
+  if (hasError) {
+    showError(payload.error);
+    els.stale.hidden = true;
+  } else {
+    hideError();
+    const stale = isStale(data);
+    els.stale.hidden = !stale;
+    if (stale) {
+      els.stale.textContent = formatAge(Date.now() - new Date(data.fetchedAt).getTime());
+      els.stale.title = 'Last updated ' + data.fetchedAt;
+    } else {
+      els.stale.textContent = '●';
+      els.stale.title = 'Data is fresh';
+    }
+  }
 }
 
 window.aqiAPI.onUpdate(render);
@@ -86,11 +150,15 @@ document.getElementById('card').addEventListener('contextmenu', (e) => {
   e.preventDefault();
 });
 
-render({ ok: false, lastGood: null });
+setInterval(() => {
+  if (lastPayload) render(lastPayload);
+}, 60000);
+
+render({ lastGood: null });
 
 window.aqiAPI
   .getState()
   .then((state) => {
-    if (state && state.data) render(state);
+    if (state) render(state);
   })
   .catch(() => {});
