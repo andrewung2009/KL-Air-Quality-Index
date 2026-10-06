@@ -8,6 +8,18 @@ A tiny always-on-top Windows widget that shows the live **US AQI for Kuala Lumpu
 key, no account, no browser tab. Data is read from IQAir's public page and refreshed every
 10 minutes, with automatic fallbacks if the page is rate-limited.
 
+## ⬇ Download
+
+[![Download](https://img.shields.io/badge/download-KL--AQI%20v1.0.0-brightgreen.svg)](https://github.com/andrewung2009/KL-Air-Quality-Index/releases/latest/download/KL-AQI.exe)
+
+**[⬇ KL-AQI.exe](https://github.com/andrewung2009/KL-Air-Quality-Index/releases/latest/download/KL-AQI.exe)** — ~80 MB, Windows 10/11 x64
+
+Double-click it — that's it. The widget opens immediately; the first run silently installs
+to `%LOCALAPPDATA%\KL AQI` and creates **Desktop** and **auto-start** shortcuts. No admin
+rights, no wizard, no dependencies.
+
+> Unsigned build — if Windows SmartScreen appears, choose *More info → Run anyway*.
+
 ![Widget screenshot](assets/screenshot.png)
 
 ## Features
@@ -85,24 +97,22 @@ Runtime state (visibility preference) lives in `state.json` beside it.
 
 ## Building the standalone Windows app
 
-The packaged build is a plain folder with an `Electron.exe` renamed to `KL AQI.exe` — it is
-**not** committed (binaries exceed GitHub's 100 MB limit). To rebuild:
+The easiest way is to grab the prebuilt **[KL-AQI.exe](https://github.com/andrewung2009/KL-Air-Quality-Index/releases/latest/download/KL-AQI.exe)**
+from the [Releases](../../releases) page. To rebuild it from source you need
+[NSIS](https://nsis.sourceforge.io/) (winget: `winget install NSIS.NSIS`):
 
 ```bash
-# 1. Extract the Electron runtime (cached by npm install)
-#    %LOCALAPPDATA%\electron\Cache\...\electron-vXX-win32-x64.zip  →  "KL AQI\"
+# 1. Stage a clean payload (Electron runtime + app files, no runtime state)
+#    %LOCALAPPDATA%\electron\Cache\...\electron-vXX-win32-x64.zip  ->  payload\
+#    + package.json main.js preload.js renderer.js fetcher.js index.html
+#      styles.css config.json tray.png, with electron.exe renamed to "KL AQI.exe"
 
-# 2. Copy the app files into  "KL AQI\resources\app\"
-#    package.json main.js preload.js renderer.js fetcher.js index.html styles.css config.json tray.png
-
-# 3. Rename  electron.exe  →  "KL AQI.exe"  and stamp icon + metadata
-npx rcedit "KL AQI\KL AQI.exe" --set-icon icon.ico \
-  --set-version-string ProductName "KL AQI" \
-  --set-file-version 1.0.0.0 --set-product-version 1.0.0.0
+# 2. Compile the one-click exe (installs to %LOCALAPPDATA%, adds shortcuts, launches)
+makensis /DPAYLOAD_DIR=payload /DICON_FILE=icon.ico /DOUT_FILE=KL-AQI.exe packaging/installer.nsi
 ```
 
 > Note: `electron-packager` currently fails silently on Node 26 (its `extract-zip` dependency
-> dies mid-extraction), which is why the manual steps above are used.
+> dies mid-extraction), which is why the manual payload + NSIS flow is used.
 
 ## Project structure
 
@@ -115,6 +125,8 @@ aqi-overlay/
 ├── index.html       # Widget markup
 ├── styles.css       # Colour-coded card layout
 ├── config.json      # User configuration
+├── packaging/
+│   └── installer.nsi # NSIS script for the one-click KL-AQI.exe release
 ├── debug_capture.js # Offscreen renderer → assets/screenshot.png
 ├── icon.ico         # App icon (multi-size, PNG-compressed)
 └── tray.png         # 16×16 tray icon
