@@ -9,12 +9,13 @@ const {
   globalShortcut,
   Tray,
   nativeImage,
-  powerMonitor
+  powerMonitor,
+  Notification
 } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { loadConfig, POSITIONS } = require('./defaults');
-const { fetchAQI } = require('./fetcher');
+const { loadConfig, POSITIONS, DEFAULTS, OVERRIDE_KEYS } = require('./defaults');
+const { fetchAQI, fetchForecast, configure: configureFetcher } = require('./fetcher');
 
 const LEGACY_STATE_PATH = path.join(__dirname, 'state.json');
 const STATE_PATH = path.join(app.getPath('userData'), 'state.json');
@@ -33,8 +34,23 @@ const TOGGLE_CT_SHORTCUT = 'CommandOrControl+Alt+A';
 const REFRESH_SHORTCUT = 'CommandOrControl+Alt+R';
 const TOGGLE_VISIBLE_SHORTCUT = 'CommandOrControl+Alt+H';
 
+const CONFIG_PATH = path.join(__dirname, 'config.json');
+const STARTUP_LNK_PATH = path.join(
+  process.env.APPDATA || '',
+  'Microsoft',
+  'Windows',
+  'Start Menu',
+  'Programs',
+  'Startup',
+  'KL AQI.lnk'
+);
+const SOURCE_LABELS = { iqair: 'IQAir', proxy: 'proxy', est: 'est.' };
+
+app.setAppUserModelId('andrewung2009.kl-aqi');
+
 let win = null;
 let tray = null;
+let settingsWin = null;
 let timer = null;
 let busy = false;
 let pendingRefresh = null;
@@ -44,6 +60,9 @@ let lastGood = null;
 let visible = true;
 let clickThrough = false;
 let overrides = {};
+let forecast = null;
+let lastNotified = null;
+let forecastTask = null;
 
 const initialState = readState();
 const loaded = loadConfig(__dirname, initialState.overrides);
@@ -52,6 +71,8 @@ visible = initialState.visible;
 clickThrough = typeof initialState.clickThrough === 'boolean' ? initialState.clickThrough : config.clickThrough;
 lastGood = initialState.lastGood;
 overrides = initialState.overrides;
+forecast = initialState.forecast;
+lastNotified = initialState.lastNotified;
 
 function log(...args) {
   try {
@@ -75,8 +96,30 @@ function isReading(value) {
   );
 }
 
+function isForecast(value) {
+  return Boolean(
+    value &&
+      typeof value === 'object' &&
+      typeof value.date === 'string' &&
+      /^\d{4}-\d{2}-\d{2}$/.test(value.date) &&
+      Number.isFinite(Number(value.high)) &&
+      Number.isFinite(Number(value.low))
+  );
+}
+
+function isLastNotified(value) {
+  return Boolean(value && typeof value === 'object' && typeof value.category === 'string');
+}
+
 function readState() {
-  const empty = { visible: true, clickThrough: null, lastGood: null, overrides: {} };
+  const empty = {
+    visible: true,
+    clickThrough: null,
+    lastGood: null,
+    overrides: {},
+    forecast: null,
+    lastNotified: null
+  };
   let raw = null;
   try {
     raw = fs.readFileSync(STATE_PATH, 'utf8').replace(/^\uFEFF/, '');
@@ -94,6 +137,8 @@ function readState() {
       visible: parsed.visible !== false,
       clickThrough: typeof parsed.clickThrough === 'boolean' ? parsed.clickThrough : null,
       lastGood: isReading(parsed.lastGood) ? parsed.lastGood : null,
+      forecast: isForecast(parsed.forecast) ? parsed.forecast : null,
+      lastNotified: isLastNotified(parsed.lastNotified) ? parsed.lastNotified : null,
       overrides:
         parsed.overrides && typeof parsed.overrides === 'object' && !Array.isArray(parsed.overrides)
           ? parsed.overrides
@@ -110,7 +155,7 @@ function saveState() {
     fs.mkdirSync(path.dirname(STATE_PATH), { recursive: true });
     fs.writeFileSync(
       STATE_PATH,
-      JSON.stringify({ visible, clickThrough, overrides, lastGood }, null, 2)
+      JSON.stringify({ visible, clickThrough, overrides, lastGood, forecast, lastNotified }, null, 2)
     );
   } catch (err) {
     log('save state failed:', err.message);
@@ -121,7 +166,20 @@ function currentSettings() {
   return {
     staleMinutes: config.staleMinutes,
     timeZone: config.timeZone,
-    clickThrough
+    clickThrough,
+    forecast: config.forecast,
+    notifications: config.notifications
+  };
+}
+
+function buildPayload() {
+  return {
+    ok: !lastError && Boolean(lastGood),
+    error: lastError,
+    data: lastGood,
+    lastGood,
+    forecast,
+    settings: currentSettings()
   };
 }
 
@@ -137,6 +195,8 @@ function trayMenu() {
     { label: statusLabel(), enabled: false },
     { label: 'Refresh now', click: () => refresh('tray') },
     { label: 'Click-through: ' + (clickThrough ? 'on' : 'off'), click: () => toggleClickThrough() },
+    { label: 'Settings…', click: () => openSettings() },
+    { label: 'Notifications: ' + (config.notifications ? 'on' : 'off'), click: () => toggleNotifications() },
     { type: 'separator' },
     {
       label: 'Position',
@@ -237,6 +297,29 @@ function reposition() {
   if (win && !win.isDestroyed()) positionWindow(win);
 }
 
+let lastMenuAt = 0;
+
+function popupWidgetMenu() {
+  const now = Date.now();
+  if (now - lastMenuAt < 500) return;
+  if (clickThrough || !win || win.isDestroyed()) return;
+  lastMenuAt = now;
+  const menu = Menu.buildFromTemplate([
+    { label: 'Refresh now', click: () => refresh('manual') },
+    { label: 'Hide widget', click: () => setVisible(false) },
+    {
+      label: 'Click-through: ' + (clickThrough ? 'on' : 'off'),
+      click: () => toggleClickThrough()
+    },
+    { label: 'Settings…', click: () => openSettings() },
+    { type: 'separator' },
+    { label: 'Quit', click: () => app.quit() }
+  ]);
+  if (!win.isFocused()) win.focus();
+  log('widget menu opened');
+  menu.popup({ window: win });
+}
+
 function createWindow() {
   const transparent = config.transparent === true;
   win = new BrowserWindow({
@@ -274,19 +357,13 @@ function createWindow() {
     }
   });
 
+  win.on('system-context-menu', (event) => {
+    event.preventDefault();
+    setImmediate(() => popupWidgetMenu());
+  });
+
   win.webContents.on('context-menu', () => {
-    if (clickThrough) return;
-    const menu = Menu.buildFromTemplate([
-      { label: 'Refresh now', click: () => refresh('manual') },
-      { label: 'Hide widget', click: () => setVisible(false) },
-      {
-        label: 'Click-through: ' + (clickThrough ? 'on' : 'off'),
-        click: () => toggleClickThrough()
-      },
-      { type: 'separator' },
-      { label: 'Quit', click: () => app.quit() }
-    ]);
-    menu.popup({ window: win });
+    popupWidgetMenu();
   });
 
   win.webContents.on('did-finish-load', () => {
@@ -316,13 +393,7 @@ function createWindow() {
 
 function send() {
   if (!win || win.isDestroyed()) return;
-  const payload = {
-    ok: !lastError && Boolean(lastGood),
-    error: lastError,
-    data: lastGood,
-    lastGood,
-    settings: currentSettings()
-  };
+  const payload = buildPayload();
   let color = '#4b5563';
   if (lastGood && lastGood.category) color = lastGood.category.color;
   else if (lastError) color = '#374151';
@@ -346,6 +417,7 @@ async function refresh(reason) {
     const data = await fetchAQI({ bypassCircuit });
     lastGood = data;
     lastError = null;
+    maybeNotify(data);
     log('ok source=' + data.source, 'aqi=' + data.aqi, 'pm25=' + data.pm25, 'via=' + reason);
     saveState();
     updateTray();
@@ -357,11 +429,89 @@ async function refresh(reason) {
     send();
   } finally {
     busy = false;
+    loadForecast();
     if (pendingRefresh) {
       const next = pendingRefresh;
       pendingRefresh = null;
       setImmediate(() => refresh(next));
     }
+  }
+}
+
+function loadForecast() {
+  if (!config.forecast || forecastTask) return;
+  forecastTask = (async () => {
+    try {
+      const data = await fetchForecast(Date.now() + 15000);
+      forecast = data;
+      saveState();
+      send();
+      log('forecast ok high=' + data.high + ' low=' + data.low);
+    } catch (err) {
+      log('forecast failed:', err.message);
+    } finally {
+      forecastTask = null;
+    }
+  })();
+}
+
+function clockNow() {
+  try {
+    return new Intl.DateTimeFormat('en-GB', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      timeZone: config.timeZone
+    }).format(new Date());
+  } catch (err) {
+    return '';
+  }
+}
+
+function maybeNotify(data) {
+  const category = data.category && data.category.label ? data.category.label : '';
+  if (!category) return;
+  const threshold = Number(config.notifyAbove) > 0 ? Number(config.notifyAbove) : 0;
+  const above = threshold > 0 && data.aqi >= threshold;
+  const previous = lastNotified;
+  let reason = null;
+  if (!previous) {
+    reason = null;
+  } else if (previous.category !== category) {
+    reason = 'category';
+  } else if (above && !previous.above) {
+    reason = 'threshold';
+  }
+  lastNotified = { category, above };
+  if (!reason || !config.notifications) return;
+  showNotification(data);
+}
+
+function showNotification(data) {
+  try {
+    if (!Notification.isSupported()) {
+      log('notifications not supported on this system');
+      return;
+    }
+    const source = SOURCE_LABELS[data.source] || data.source;
+    const time = clockNow();
+    const parts = [];
+    if (data.pm25 !== null && data.pm25 !== undefined) parts.push('PM2.5 ' + data.pm25 + ' µg/m³');
+    parts.push(source);
+    if (time) parts.push(time);
+    const toast = new Notification({
+      title: 'US AQI ' + data.aqi + ' — ' + data.category.label,
+      body: parts.join(' · '),
+      icon: path.join(__dirname, 'tray.png')
+    });
+    toast.on('click', () => {
+      setVisible(true);
+      if (win && !win.isDestroyed()) win.focus();
+    });
+    toast.show();
+    log('notification shown aqi=' + data.aqi, 'category=' + data.category.label);
+  } catch (err) {
+    log('notification failed:', err.message);
   }
 }
 
@@ -383,6 +533,167 @@ function toggleClickThrough(force) {
   updateTray();
   send();
   log('click-through:', clickThrough);
+}
+
+function snapshotConfig() {
+  return {
+    url: config.url,
+    latitude: config.latitude,
+    longitude: config.longitude,
+    refreshMinutes: config.refreshMinutes,
+    staleMinutes: config.staleMinutes,
+    position: config.position,
+    inset: config.inset,
+    width: config.width,
+    height: config.height,
+    timeZone: config.timeZone,
+    fallbacks: config.fallbacks,
+    notifications: config.notifications,
+    notifyAbove: config.notifyAbove,
+    forecast: config.forecast
+  };
+}
+
+function readConfigFile() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8').replace(/^\uFEFF/, ''));
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+  } catch (err) {
+    // fall through to an empty object
+  }
+  return {};
+}
+
+function startupShortcutExists() {
+  return Boolean(process.env.APPDATA) && fs.existsSync(STARTUP_LNK_PATH);
+}
+
+function getAutoStart() {
+  if (startupShortcutExists()) return true;
+  if (!app.isPackaged) return false;
+  try {
+    return app.getLoginItemSettings().openAtLogin === true;
+  } catch (err) {
+    return false;
+  }
+}
+
+function setAutoStart(enabled) {
+  const on = Boolean(enabled);
+  if (on) {
+    if (!startupShortcutExists() && app.isPackaged) {
+      try {
+        app.setLoginItemSettings({ openAtLogin: true, path: process.execPath, args: [] });
+      } catch (err) {
+        log('setLoginItemSettings(true) failed:', err.message);
+      }
+    }
+  } else {
+    if (app.isPackaged) {
+      try {
+        app.setLoginItemSettings({ openAtLogin: false, path: process.execPath, args: [] });
+      } catch (err) {
+        log('setLoginItemSettings(false) failed:', err.message);
+      }
+    }
+    try {
+      if (startupShortcutExists()) fs.rmSync(STARTUP_LNK_PATH);
+    } catch (err) {
+      log('startup shortcut removal failed:', err.message);
+    }
+  }
+  const state = getAutoStart();
+  log('auto-start:', state);
+  return state;
+}
+
+function applyLive(before) {
+  const sizeChanged = before.width !== config.width || before.height !== config.height;
+  const anchorChanged = before.position !== config.position || before.inset !== config.inset;
+  if (win && !win.isDestroyed() && (sizeChanged || anchorChanged)) {
+    if (sizeChanged) {
+      const bounds = win.getBounds();
+      win.setBounds({ x: bounds.x, y: bounds.y, width: config.width, height: config.height });
+    }
+    positionWindow(win);
+  }
+  if (before.refreshMinutes !== config.refreshMinutes) schedule();
+  if (
+    before.url !== config.url ||
+    before.latitude !== config.latitude ||
+    before.longitude !== config.longitude
+  ) {
+    refresh('settings');
+  }
+}
+
+function saveConfigPartial(partial) {
+  if (!partial || typeof partial !== 'object' || Array.isArray(partial)) {
+    return { ok: false, error: 'invalid settings payload' };
+  }
+  const known = {};
+  for (const key of Object.keys(partial)) {
+    if (Object.prototype.hasOwnProperty.call(DEFAULTS, key)) known[key] = partial[key];
+  }
+  const before = snapshotConfig();
+  const file = readConfigFile();
+  Object.assign(file, known);
+  try {
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify(file, null, 2) + '\n');
+  } catch (err) {
+    return { ok: false, error: 'could not write config.json: ' + err.message };
+  }
+  const has = (key) => Object.prototype.hasOwnProperty.call(known, key);
+  if (has('position')) overrides.position = known.position;
+  if (has('refreshMinutes')) overrides.refreshMinutes = known.refreshMinutes;
+  const reloaded = loadConfig(__dirname, overrides);
+  Object.assign(config, reloaded.config);
+  if (has('position')) overrides.position = config.position;
+  if (has('refreshMinutes')) overrides.refreshMinutes = config.refreshMinutes;
+  saveState();
+  applyLive(before);
+  updateTray();
+  send();
+  for (const warning of reloaded.warnings) log('config:', warning);
+  log('settings saved:', Object.keys(known).join(', ') || '(none)');
+  return { ok: true, warnings: reloaded.warnings, config: snapshotConfig() };
+}
+
+function toggleNotifications() {
+  const result = saveConfigPartial({ notifications: !config.notifications });
+  if (!result.ok) log('notifications toggle failed:', result.error);
+}
+
+function openSettings() {
+  if (settingsWin && !settingsWin.isDestroyed()) {
+    settingsWin.show();
+    settingsWin.focus();
+    return;
+  }
+  settingsWin = new BrowserWindow({
+    width: 460,
+    height: 640,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    show: false,
+    title: 'KL AQI Settings',
+    autoHideMenuBar: true,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false
+    }
+  });
+  settingsWin.webContents.setWindowOpenHandler(() => ({ action: 'ignore' }));
+  settingsWin.webContents.on('will-navigate', (e) => e.preventDefault());
+  settingsWin.once('ready-to-show', () => settingsWin.show());
+  settingsWin.on('closed', () => {
+    settingsWin = null;
+  });
+  settingsWin.loadFile('settings.html');
+  log('settings window opened');
 }
 
 function registerShortcuts() {
@@ -420,6 +731,7 @@ if (!gotLock) {
 
   app.whenReady().then(() => {
     for (const warning of loaded.warnings) log('config:', warning);
+    configureFetcher(config);
     createWindow();
     createTray();
     registerShortcuts();
@@ -453,13 +765,7 @@ if (!gotLock) {
 }
 
 ipcMain.handle('refresh-now', () => refresh('renderer'));
-ipcMain.handle('get-state', () => ({
-  ok: !lastError && Boolean(lastGood),
-  error: lastError,
-  data: lastGood,
-  lastGood,
-  settings: currentSettings()
-}));
+ipcMain.handle('get-state', () => buildPayload());
 ipcMain.handle('quit', () => app.quit());
 ipcMain.handle('toggle-clickthrough', () => {
   toggleClickThrough();
@@ -470,3 +776,21 @@ ipcMain.handle('toggle-visibility', () => {
   return visible;
 });
 ipcMain.handle('get-visible', () => visible);
+ipcMain.handle('settings:get', () => ({
+  ok: true,
+  config: snapshotConfig(),
+  defaults: DEFAULTS,
+  positions: POSITIONS,
+  packaged: app.isPackaged,
+  autoStart: getAutoStart()
+}));
+ipcMain.handle('settings:save', (_event, values) => {
+  const result = saveConfigPartial(values);
+  if (result.ok) result.autoStart = getAutoStart();
+  return result;
+});
+ipcMain.handle('settings:autostart', (_event, enabled) => ({ autoStart: setAutoStart(enabled) }));
+ipcMain.handle('settings:close', () => {
+  if (settingsWin && !settingsWin.isDestroyed()) settingsWin.close();
+  return true;
+});

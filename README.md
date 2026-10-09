@@ -10,7 +10,7 @@ key, no account, no browser tab. Data is read from IQAir's public page and refre
 
 ## ⬇ Download
 
-[![Download](https://img.shields.io/badge/download-KL--AQI%20v1.0.1-brightgreen.svg)](https://github.com/andrewung2009/KL-Air-Quality-Index/releases/latest/download/KL-AQI.exe)
+[![Download](https://img.shields.io/badge/download-KL--AQI%20v1.1.0-brightgreen.svg)](https://github.com/andrewung2009/KL-Air-Quality-Index/releases/latest/download/KL-AQI.exe)
 
 **[⬇ KL-AQI.exe](https://github.com/andrewung2009/KL-Air-Quality-Index/releases/latest/download/KL-AQI.exe)** — ~80 MB, Windows 10/11 x64
 
@@ -30,6 +30,11 @@ and are left alone.
 
 - **Always on top** — pinned to a screen corner (all four corners supported), draggable, frameless 224×96 card
 - **Live US AQI + PM2.5** with colour-coded category (Good → Hazardous) and local time
+- **Today's high / low** — a compact `▲85 ▼42` chip next to the reading, from Open-Meteo's 24h forecast
+- **In-app settings** — right-click → *Settings…* to edit the source URL, coordinates, time zone,
+  refresh cadence, layout, notifications and auto-start; changes are validated and applied live
+- **Notifications** — a Windows toast when the AQI category changes (optionally when it crosses
+  a threshold you set); clicking the toast brings the widget forward
 - **No API key** — scrapes the IQAir observation from the public page's structured data
 - **Resilient fetch chain** — IQAir → jina reader proxy → Open-Meteo (clearly labelled `est.`),
   bounded by a 90-second deadline and a circuit breaker that stops hammering a blocked source
@@ -68,9 +73,29 @@ npm run test:fetch
 | `Ctrl+Alt+A` | Toggle click-through (mouse passes to windows underneath) |
 | `Ctrl+Alt+R` | Refresh now |
 
-Right-clicking the widget opens a menu (Refresh, Hide, click-through, Quit), and the tray
-icon offers the same controls plus position/interval pickers and the current reading.
-Left-clicking the tray icon hides or shows the widget.
+Right-clicking the widget opens a menu (Refresh, Hide, click-through, **Settings…**, Quit), and
+the tray icon offers the same controls plus position/interval pickers, a **Notifications on/off**
+toggle and the current reading. Left-clicking the tray icon hides or shows the widget.
+
+## Settings window
+
+**Settings…** (tray or widget right-click) opens a form that edits `config.json` for you — no
+hand-editing required:
+
+- **Data source** — IQAir page URL, fallback coordinates, IANA time zone, fallback sources toggle
+- **Refresh** — interval, staleness threshold, high/low chip on/off
+- **Layout** — anchor corner, inset, card width/height (applied live, no restart)
+- **Notifications** — category-change toasts plus an optional `notifyAbove` threshold
+- **Start automatically** — installed app only; creates/removes the startup entry
+
+Values are validated with the same rules as a hand-edited `config.json`; anything out of range
+falls back to the default and is reported inline. Position and refresh-interval changes are also
+written to `state.json`'s `overrides`, so they keep winning over the file afterwards (delete
+`state.json` to go back to the file's values).
+
+Category-change notifications are **on** by default: the first reading after launch only sets a
+baseline (no toast at startup), then every later category change notifies. `notifyAbove` defaults
+to `0` (off).
 
 ## Data sources
 
@@ -108,6 +133,11 @@ Edit `config.json` (restart to apply):
 | `fallbacks` | `true` | Enable the jina / Open-Meteo chain |
 | `clickThrough` | `false` | Start in click-through mode |
 | `transparent` / `focusable` | `false` / `true` | Window rendering options |
+| `notifications` | `true` | Toast when the AQI category changes |
+| `notifyAbove` | `0` | Also toast at or above this AQI (`0` = off) |
+| `forecast` | `true` | Show today's high/low chip on the card |
+
+Prefer the UI? **Settings…** in the tray menu or widget right-click edits these for you.
 
 Malformed or out-of-range values fall back to their defaults instead of crashing the app —
 the warning is written to the log.
@@ -150,9 +180,12 @@ a new GitHub release.
 aqi-overlay/
 ├── main.js          # BrowserWindow, tray, scheduler, hotkeys, IPC, state
 ├── defaults.js      # Config defaults, loading, validation, overrides
-├── fetcher.js       # 3-source fetch chain + AQI classification
+├── fetcher.js       # 3-source fetch chain + 24h forecast + AQI classification
 ├── renderer.js      # DOM updates for ok / loading / error / stale states
-├── preload.js       # Context-isolated bridge (onUpdate, getState, …)
+├── preload.js       # Context-isolated bridge (onUpdate, getState, settings)
+├── settings.html    # Settings window markup
+├── settings.js      # Settings window form logic
+├── settings.css     # Settings window styles
 ├── index.html       # Widget markup
 ├── styles.css       # Colour-coded card layout
 ├── config.json      # User configuration

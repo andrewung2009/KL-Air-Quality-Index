@@ -17,7 +17,10 @@ const DEFAULTS = {
   fallbacks: true,
   clickThrough: false,
   transparent: false,
-  focusable: true
+  focusable: true,
+  notifications: true,
+  notifyAbove: 0,
+  forecast: true
 };
 
 const POSITIONS = ['bottom-right', 'top-right', 'bottom-left', 'top-left'];
@@ -98,6 +101,14 @@ function loadConfig(dir, overrides) {
     warnings
   );
   config.inset = pickNumber(config.inset, 0, 400, DEFAULTS.inset, 'inset', warnings);
+  config.notifyAbove = pickNumber(
+    config.notifyAbove,
+    0,
+    500,
+    DEFAULTS.notifyAbove,
+    'notifyAbove',
+    warnings
+  );
   config.latitude = pickNumber(config.latitude, -90, 90, DEFAULTS.latitude, 'latitude', warnings);
   config.longitude = pickNumber(
     config.longitude,
@@ -133,6 +144,8 @@ function loadConfig(dir, overrides) {
   config.clickThrough = toBool(config.clickThrough, DEFAULTS.clickThrough);
   config.transparent = toBool(config.transparent, DEFAULTS.transparent);
   config.focusable = toBool(config.focusable, DEFAULTS.focusable);
+  config.notifications = toBool(config.notifications, DEFAULTS.notifications);
+  config.forecast = toBool(config.forecast, DEFAULTS.forecast);
 
   return { config, warnings, configPath };
 }

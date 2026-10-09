@@ -21,10 +21,13 @@ const APP_FILES = [
   'main.js',
   'preload.js',
   'renderer.js',
+  'settings.js',
   'fetcher.js',
   'defaults.js',
   'index.html',
+  'settings.html',
   'styles.css',
+  'settings.css',
   'config.json',
   'tray.png'
 ];

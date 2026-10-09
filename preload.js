@@ -9,5 +9,11 @@ contextBridge.exposeInMainWorld('aqiAPI', {
   getState: () => ipcRenderer.invoke('get-state'),
   refreshNow: () => ipcRenderer.invoke('refresh-now'),
   toggleClickThrough: () => ipcRenderer.invoke('toggle-clickthrough'),
-  quit: () => ipcRenderer.invoke('quit')
+  quit: () => ipcRenderer.invoke('quit'),
+  settings: {
+    get: () => ipcRenderer.invoke('settings:get'),
+    save: (values) => ipcRenderer.invoke('settings:save', values),
+    autostart: (enabled) => ipcRenderer.invoke('settings:autostart', enabled),
+    close: () => ipcRenderer.invoke('settings:close')
+  }
 });

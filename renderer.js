@@ -8,10 +8,17 @@ const els = {
   aqi: document.getElementById('aqi'),
   category: document.getElementById('category'),
   pm: document.getElementById('pm'),
+  forecast: document.getElementById('forecast'),
   error: document.getElementById('error')
 };
 
-let settings = { staleMinutes: 20, timeZone: 'Asia/Kuala_Lumpur', clickThrough: false };
+let settings = {
+  staleMinutes: 20,
+  timeZone: 'Asia/Kuala_Lumpur',
+  clickThrough: false,
+  forecast: true,
+  notifications: true
+};
 let lastPayload = null;
 
 const SOURCE_LABELS = { iqair: 'IQAir', proxy: 'proxy', est: 'est.' };
@@ -72,6 +79,31 @@ function applyClickThrough() {
   document.body.dataset.clickthrough = settings.clickThrough ? 'true' : 'false';
 }
 
+function todayInTimeZone() {
+  try {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: settings.timeZone }).format(new Date());
+  } catch (e) {
+    return new Date().toISOString().slice(0, 10);
+  }
+}
+
+function renderForecast(payload) {
+  const data = payload && payload.forecast;
+  const show =
+    settings.forecast !== false &&
+    data &&
+    Number.isFinite(Number(data.high)) &&
+    Number.isFinite(Number(data.low)) &&
+    data.date === todayInTimeZone();
+  els.forecast.hidden = !show;
+  if (show) {
+    els.forecast.textContent = '▲' + Math.round(data.high) + ' ▼' + Math.round(data.low);
+    els.forecast.title = "Today's US AQI high " + Math.round(data.high) + ' · low ' + Math.round(data.low);
+  } else {
+    els.forecast.textContent = '';
+  }
+}
+
 function showError(raw) {
   els.error.hidden = false;
   els.error.textContent = friendlyError(raw);
@@ -88,6 +120,7 @@ function render(payload) {
   if (payload) lastPayload = payload;
   if (payload && payload.settings) settings = payload.settings;
   applyClickThrough();
+  renderForecast(payload || lastPayload);
 
   const data = payload && (payload.data || payload.lastGood);
   const failed = Boolean(payload && payload.ok === false);

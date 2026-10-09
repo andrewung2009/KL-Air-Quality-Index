@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src 'self'; script-src 'self'"
+    />
+    <title>KL AQI Settings</title>
+    <link rel="stylesheet" href="settings.css" />
+  </head>
+  <body>
+    <header>
+      <h1>KL AQI Settings</h1>
+      <p class="sub">Changes are validated and applied immediately.</p>
+    </header>
+
+    <form id="form" novalidate>
+      <section>
+        <h2>Data source</h2>
+        <div class="field field-wide">
+          <label for="url">IQAir page URL</label>
+          <input type="url" id="url" spellcheck="false" />
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="latitude">Latitude</label>
+            <input type="number" id="latitude" step="any" min="-90" max="90" />
+          </div>
+          <div class="field">
+            <label for="longitude">Longitude</label>
+            <input type="number" id="longitude" step="any" min="-180" max="180" />
+          </div>
+        </div>
+        <div class="field field-wide">
+          <label for="timeZone">Time zone <span class="hint">(IANA, e.g. Asia/Kuala_Lumpur)</span></label>
+          <input type="text" id="timeZone" spellcheck="false" />
+        </div>
+        <div class="check">
+          <input type="checkbox" id="fallbacks" />
+          <label for="fallbacks">Use fallback sources (proxy, Open-Meteo estimate)</label>
+        </div>
+      </section>
+
+      <section>
+        <h2>Refresh</h2>
+        <div class="row">
+          <div class="field">
+            <label for="refreshMinutes">Refresh every (min)</label>
+            <input type="number" id="refreshMinutes" min="1" max="1440" step="1" />
+          </div>
+          <div class="field">
+            <label for="staleMinutes">Flag stale after (min)</label>
+            <input type="number" id="staleMinutes" min="1" max="14400" step="1" />
+          </div>
+        </div>
+        <div class="check">
+          <input type="checkbox" id="forecast" />
+          <label for="forecast">Show today's high / low on the card</label>
+        </div>
+      </section>
+
+      <section>
+        <h2>Layout</h2>
+        <div class="row">
+          <div class="field">
+            <label for="position">Anchor corner</label>
+            <select id="position"></select>
+          </div>
+          <div class="field">
+            <label for="inset">Inset from edge (px)</label>
+            <input type="number" id="inset" min="0" max="400" step="1" />
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="width">Width (px)</label>
+            <input type="number" id="width" min="160" max="600" step="1" />
+          </div>
+          <div class="field">
+            <label for="height">Height (px)</label>
+            <input type="number" id="height" min="64" max="400" step="1" />
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Notifications</h2>
+        <div class="check">
+          <input type="checkbox" id="notifications" />
+          <label for="notifications">Toast when the AQI category changes</label>
+        </div>
+        <div class="field">
+          <label for="notifyAbove">Also notify when AQI is at or above <span class="hint">(0 = off)</span></label>
+          <input type="number" id="notifyAbove" min="0" max="500" step="1" />
+        </div>
+      </section>
+
+      <section>
+        <h2>Startup</h2>
+        <div class="check">
+          <input type="checkbox" id="autoStart" />
+          <label for="autoStart">Start automatically when I sign in</label>
+        </div>
+        <p id="autoStartNote" class="hint" hidden>
+          Available in the installed app only — run <code>npm start</code> from a release build.
+        </p>
+      </section>
+
+      <footer>
+        <span id="status" class="status"></span>
+        <span class="spacer"></span>
+        <button type="button" id="cancel" class="btn">Cancel</button>
+        <button type="submit" id="save" class="btn primary">Save</button>
+      </footer>
+    </form>
+
+    <script src="settings.js"></script>
+  </body>
+</html>

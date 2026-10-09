@@ -12,5 +12,8 @@
   "fallbacks": true,
   "clickThrough": false,
   "transparent": false,
-  "focusable": true
+  "focusable": true,
+  "notifications": true,
+  "notifyAbove": 0,
+  "forecast": true
 }
