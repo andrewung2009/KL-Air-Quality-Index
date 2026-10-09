@@ -13,7 +13,7 @@ app.whenReady().then(async () => {
     height: 96,
     frame: false,
     show: false,
-    backgroundColor: classify(198).color,
+    backgroundColor: classify(190).color,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -21,17 +21,25 @@ app.whenReady().then(async () => {
     }
   });
   await win.loadFile('index.html');
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kuala_Lumpur' }).format(new Date());
   win.webContents.send('aqi', {
     ok: true,
     data: {
-      aqi: 198,
-      pm25: 123,
-      category: classify(198),
-      observedAt: '2026-10-06T02:00:00.000Z',
+      aqi: 190,
+      pm25: 111.5,
+      category: classify(190),
+      observedAt: '2026-10-09T13:00:00.000Z',
       source: 'iqair',
       fetchedAt: new Date().toISOString()
     },
-    settings: { staleMinutes: 20, timeZone: 'Asia/Kuala_Lumpur' }
+    forecast: { date: today, high: 251, low: 189 },
+    settings: {
+      staleMinutes: 20,
+      timeZone: 'Asia/Kuala_Lumpur',
+      clickThrough: false,
+      forecast: true,
+      notifications: true
+    }
   });
   await new Promise((r) => setTimeout(r, 700));
 
