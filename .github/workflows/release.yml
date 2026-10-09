@@ -15,6 +15,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v5
@@ -39,6 +41,18 @@ jobs:
           $mb = [math]::Round((Get-Item $exe).Length / 1MB, 1)
           $downloadLine = '1. Download `KL-AQI.exe` (~' + $mb + ' MB).'
           $shaLine = '- SHA-256: `' + $sha + '`'
+          $prevTag = git describe --tags --abbrev=0 HEAD^ 2>$null
+          if ($LASTEXITCODE -eq 0 -and $prevTag) {
+            $logRange = "$prevTag..HEAD"
+          } else {
+            $logRange = "HEAD"
+          }
+          $whatsNew = @()
+          $changeLines = @(git log --pretty=format:'- %s' $logRange)
+          if ($changeLines.Count -gt 0) {
+            $whatsNew = @('### What''s new', '') + $changeLines + @('')
+            Write-Output "changelog range: $logRange ($($changeLines.Count) commits)"
+          }
           $lines = @(
             '**KL AQI** - an always-on-top Windows widget showing the live Kuala Lumpur US AQI (IQAir, no API key).',
             '',
@@ -56,6 +70,10 @@ jobs:
             '',
             '[Source code](https://github.com/andrewung2009/KL-Air-Quality-Index)'
           )
+          $detailIdx = [array]::IndexOf($lines, '### Details')
+          if ($detailIdx -ge 0 -and $whatsNew.Count -gt 0) {
+            $lines = @($lines[0..($detailIdx - 1)]) + $whatsNew + @($lines[$detailIdx..($lines.Count - 1)])
+          }
           Set-Content -Path dist/RELEASE_BODY.md -Value ($lines -join "`n") -Encoding utf8
 
       - name: Publish release
