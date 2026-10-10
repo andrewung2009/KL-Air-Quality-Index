@@ -25,7 +25,7 @@ and are left alone.
 
 > Unsigned build — if Windows SmartScreen appears, choose *More info → Run anyway*.
 
-**See it in action** — the card cycles through AQI categories (note the live high/low chip), then opens its settings:
+**See it in action** — the card cycles through AQI categories (note the observed day-range chip), then opens its settings:
 
 ![Widget cycling through AQI categories, then the settings window](assets/demo.gif)
 
@@ -33,7 +33,7 @@ and are left alone.
 
 - **Always on top** — pinned to a screen corner (all four corners supported), draggable, frameless 224×96 card
 - **Live US AQI + PM2.5** with colour-coded category (Good → Hazardous) and local time
-- **Today's high / low** — a compact `▲85 ▼42` chip next to the reading, from Open-Meteo's 24h forecast
+- **Today's observed high / low** — a compact `▲190 ▼12` chip next to the reading, built from the IQAir measurements the app has actually seen today (resets each day)
 - **In-app settings** — right-click → *Settings…* to edit the source URL, coordinates, time zone,
   refresh cadence, layout, notifications and auto-start; changes are validated and applied live
 - **Notifications** — a Windows toast when the AQI category changes (optionally when it crosses
@@ -88,7 +88,7 @@ toggle and the current reading. Left-clicking the tray icon hides or shows the w
 hand-editing required:
 
 - **Data source** — IQAir page URL, fallback coordinates, IANA time zone, fallback sources toggle
-- **Refresh** — interval, staleness threshold, high/low chip on/off
+- **Refresh** — interval, staleness threshold, observed range chip on/off
 - **Layout** — anchor corner, inset, card width/height (applied live, no restart)
 - **Notifications** — category-change toasts plus an optional `notifyAbove` threshold
 - **Start automatically** — installed app only; creates/removes the startup entry
@@ -141,7 +141,7 @@ Edit `config.json` (restart to apply):
 | `focusable` | `false` | Widget can take keyboard focus; keep `false` so clicking it never flashes the taskbar over fullscreen apps |
 | `notifications` | `true` | Toast when the AQI category changes |
 | `notifyAbove` | `0` | Also toast at or above this AQI (`0` = off) |
-| `forecast` | `true` | Show today's high/low chip on the card |
+| `range` | `true` | Show the observed day high/low chip on the card |
 
 Prefer the UI? **Settings…** in the tray menu or widget right-click edits these for you.
 
@@ -186,7 +186,7 @@ a new GitHub release.
 aqi-overlay/
 ├── main.js          # BrowserWindow, tray, scheduler, hotkeys, IPC, state
 ├── defaults.js      # Config defaults, loading, validation, overrides
-├── fetcher.js       # 3-source fetch chain + 24h forecast + AQI classification
+├── fetcher.js       # 3-source fetch chain + AQI classification
 ├── renderer.js      # DOM updates for ok / loading / error / stale states
 ├── preload.js       # Context-isolated bridge (onUpdate, getState, settings)
 ├── settings.html    # Settings window markup
@@ -202,7 +202,7 @@ aqi-overlay/
 │   ├── classify.test.js  # US AQI breakpoint boundaries and colours
 │   ├── config.test.js    # loadConfig validation, clamps and overrides
 │   ├── parse.test.js     # JSON-LD observation parsing, blocked-page detection
-│   ├── forecast.test.js  # 24h high/low filtering by timezone
+│   ├── dayrange.test.js    # observed day-range updates and config alias
 │   └── chain.test.js     # IQAir → jina → Open-Meteo source order
 ├── .github/workflows/
 │   ├── ci.yml       # push/PR → unit tests + syntax check
