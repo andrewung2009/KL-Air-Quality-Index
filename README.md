@@ -29,8 +29,6 @@ and are left alone.
 
 ![Widget cycling through AQI categories, then the settings window](assets/demo.gif)
 
-![Widget screenshot](assets/screenshot.png)
-
 ## Features
 
 - **Always on top** — pinned to a screen corner (all four corners supported), draggable, frameless 224×96 card
@@ -211,7 +209,6 @@ aqi-overlay/
 │   └── release.yml  # tag push → build KL-AQI.exe → publish the release
 ├── packaging/
 │   └── installer.nsi # NSIS script for the one-click KL-AQI.exe release
-├── debug_capture.js # Offscreen renderer → assets/screenshot.png
 ├── icon.ico         # App icon (multi-size, PNG-compressed)
 └── tray.png         # 16×16 tray icon
 ```
