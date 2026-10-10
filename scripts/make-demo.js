@@ -11,7 +11,6 @@ const { loadConfig, POSITIONS } = require('../defaults');
 
 const CANVAS_W = 700;
 const CANVAS_H = 340;
-const BG = { r: 15, g: 23, b: 42 };
 const WIDGET_SCALE = 2;
 const SETTINGS_H = 308;
 const SETTINGS_X = 468;
@@ -43,7 +42,7 @@ function blit(canvas, src, x, y) {
       canvas.data[di] = src.data[si];
       canvas.data[di + 1] = src.data[si + 1];
       canvas.data[di + 2] = src.data[si + 2];
-      canvas.data[di + 3] = 255;
+      canvas.data[di + 3] = src.data[si + 3];
     }
   }
 }
@@ -142,12 +141,6 @@ app.whenReady().then(async () => {
   for (const state of STATES) {
     const captured = await captureState(widgetWin, state);
     const canvas = new PNG({ width: CANVAS_W, height: CANVAS_H });
-    for (let i = 0; i < canvas.data.length; i += 4) {
-      canvas.data[i] = BG.r;
-      canvas.data[i + 1] = BG.g;
-      canvas.data[i + 2] = BG.b;
-      canvas.data[i + 3] = 255;
-    }
     blit(canvas, scalePng(captured, widgetW, widgetH), widgetX, widgetY);
     frames.push({ png: canvas, delay: state.delay });
   }
@@ -160,12 +153,6 @@ app.whenReady().then(async () => {
     SETTINGS_H
   );
   const finalCanvas = new PNG({ width: CANVAS_W, height: CANVAS_H });
-  for (let i = 0; i < finalCanvas.data.length; i += 4) {
-    finalCanvas.data[i] = BG.r;
-    finalCanvas.data[i + 1] = BG.g;
-    finalCanvas.data[i + 2] = BG.b;
-    finalCanvas.data[i + 3] = 255;
-  }
   blit(finalCanvas, scalePng(widgetFinal, widgetW, widgetH), widgetX, widgetY);
   blit(finalCanvas, settingsPng, SETTINGS_X, SETTINGS_Y);
   frames.push({ png: finalCanvas, delay: 1800 });
@@ -176,9 +163,22 @@ app.whenReady().then(async () => {
     if (process.env.DEMO_DUMP) {
       fs.writeFileSync(path.join(os.tmpdir(), 'demo-frame-' + i + '.png'), PNG.sync.write(frame.png));
     }
-    const palette = quantize(frame.png.data, 256, { format: 'rgb565' });
-    const index = applyPalette(frame.png.data, palette, 'rgb565');
-    gif.writeFrame(index, CANVAS_W, CANVAS_H, { palette, delay: frame.delay });
+    const palette = quantize(frame.png.data, 256, {
+      format: 'rgba4444',
+      oneBitAlpha: true,
+      clearAlpha: true,
+      clearAlphaThreshold: 1,
+      clearAlphaColor: 0x00
+    });
+    const transparentIndex = palette.findIndex((color) => color[3] === 0);
+    const index = applyPalette(frame.png.data, palette, 'rgba4444');
+    gif.writeFrame(index, CANVAS_W, CANVAS_H, {
+      palette,
+      transparent: transparentIndex >= 0,
+      transparentIndex: transparentIndex >= 0 ? transparentIndex : 0,
+      dispose: 2,
+      delay: frame.delay
+    });
   }
   gif.finish();
   fs.writeFileSync(OUT, gif.bytes());
