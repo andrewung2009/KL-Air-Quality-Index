@@ -18,10 +18,12 @@ const SETTINGS_Y = 16;
 const OUT = path.join(__dirname, '..', 'assets', 'demo.gif');
 
 const STATES = [
-  { aqi: 42, pm25: 12, rangeHigh: 42, rangeLow: 12, delay: 1100 },
-  { aqi: 88, pm25: 35, rangeHigh: 88, rangeLow: 12, delay: 1100 },
-  { aqi: 145, pm25: 54, rangeHigh: 145, rangeLow: 12, delay: 1100 },
-  { aqi: 190, pm25: 111.5, rangeHigh: 190, rangeLow: 12, delay: 1100 }
+  { aqi: 42, pm25: 12, rangeHigh: 42, rangeLow: 12, delay: 1000 },
+  { aqi: 88, pm25: 35, rangeHigh: 88, rangeLow: 12, delay: 1000 },
+  { aqi: 145, pm25: 54, rangeHigh: 145, rangeLow: 12, delay: 1000 },
+  { aqi: 190, pm25: 111.5, rangeHigh: 190, rangeLow: 12, delay: 1000 },
+  { aqi: 240, pm25: 150.5, rangeHigh: 240, rangeLow: 12, delay: 1000 },
+  { aqi: 350, pm25: 250.2, rangeHigh: 350, rangeLow: 12, delay: 1000 }
 ];
 
 app.disableHardwareAcceleration();
