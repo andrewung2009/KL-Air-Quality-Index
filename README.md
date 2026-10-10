@@ -11,7 +11,7 @@ key, no account, no browser tab. Data is read from IQAir's public page and refre
 
 ## ⬇ Download
 
-[![Download](https://img.shields.io/badge/download-KL--AQI%20v1.1.1-brightgreen.svg)](https://github.com/andrewung2009/KL-Air-Quality-Index/releases/latest/download/KL-AQI.exe)
+[![Download](https://img.shields.io/badge/download-KL--AQI%20v1.2.0-brightgreen.svg)](https://github.com/andrewung2009/KL-Air-Quality-Index/releases/latest/download/KL-AQI.exe)
 
 **[⬇ KL-AQI.exe](https://github.com/andrewung2009/KL-Air-Quality-Index/releases/latest/download/KL-AQI.exe)** — ~80 MB, Windows 10/11 x64
 
