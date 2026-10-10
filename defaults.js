@@ -20,7 +20,7 @@ const DEFAULTS = {
   focusable: false,
   notifications: true,
   notifyAbove: 0,
-  forecast: true
+  range: true
 };
 
 const POSITIONS = ['bottom-right', 'top-right', 'bottom-left', 'top-left'];
@@ -72,6 +72,13 @@ function loadConfig(dir, overrides) {
     } else {
       warnings.push('unknown state override "' + key + '" ignored');
     }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(user, 'forecast')) {
+    if (!Object.prototype.hasOwnProperty.call(user, 'range')) {
+      user.range = user.forecast;
+    }
+    delete user.forecast;
   }
 
   for (const key of Object.keys(user)) {
@@ -145,9 +152,38 @@ function loadConfig(dir, overrides) {
   config.transparent = toBool(config.transparent, DEFAULTS.transparent);
   config.focusable = toBool(config.focusable, DEFAULTS.focusable);
   config.notifications = toBool(config.notifications, DEFAULTS.notifications);
-  config.forecast = toBool(config.forecast, DEFAULTS.forecast);
+  config.range = toBool(config.range, DEFAULTS.range);
 
   return { config, warnings, configPath };
 }
 
-module.exports = { DEFAULTS, POSITIONS, OVERRIDE_KEYS, loadConfig };
+function isDayRange(value) {
+  return Boolean(
+    value &&
+      typeof value === 'object' &&
+      typeof value.date === 'string' &&
+      /^\d{4}-\d{2}-\d{2}$/.test(value.date) &&
+      Number.isFinite(Number(value.high)) &&
+      Number.isFinite(Number(value.low))
+  );
+}
+
+function updateDayRange(prev, aqi, date) {
+  if (aqi === null || aqi === undefined || aqi === '') {
+    return isDayRange(prev) ? prev : null;
+  }
+  const value = Number(aqi);
+  if (!Number.isFinite(value) || typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return isDayRange(prev) ? prev : null;
+  }
+  if (!isDayRange(prev) || prev.date !== date) {
+    return { date, high: Math.round(value), low: Math.round(value) };
+  }
+  return {
+    date,
+    high: Math.round(Math.max(Number(prev.high), value)),
+    low: Math.round(Math.min(Number(prev.low), value))
+  };
+}
+
+module.exports = { DEFAULTS, POSITIONS, OVERRIDE_KEYS, loadConfig, isDayRange, updateDayRange };

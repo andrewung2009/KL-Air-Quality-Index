@@ -125,7 +125,7 @@ body[data-clickthrough="true"] .card {
   opacity: 0.9;
 }
 
-.forecast {
+.range {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.2px;

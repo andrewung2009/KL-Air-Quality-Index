@@ -18,10 +18,10 @@ const SETTINGS_Y = 16;
 const OUT = path.join(__dirname, '..', 'assets', 'demo.gif');
 
 const STATES = [
-  { aqi: 42, pm25: 12, high: 68, low: 28, delay: 1100 },
-  { aqi: 88, pm25: 35, high: 150, low: 60, delay: 1100 },
-  { aqi: 145, pm25: 54, high: 180, low: 90, delay: 1100 },
-  { aqi: 190, pm25: 111.5, high: 251, low: 189, delay: 1100 }
+  { aqi: 42, pm25: 12, rangeHigh: 42, rangeLow: 12, delay: 1100 },
+  { aqi: 88, pm25: 35, rangeHigh: 88, rangeLow: 12, delay: 1100 },
+  { aqi: 145, pm25: 54, rangeHigh: 145, rangeLow: 12, delay: 1100 },
+  { aqi: 190, pm25: 111.5, rangeHigh: 190, rangeLow: 12, delay: 1100 }
 ];
 
 app.disableHardwareAcceleration();
@@ -64,16 +64,16 @@ function widgetPayload(state) {
       source: 'iqair',
       fetchedAt: new Date().toISOString()
     },
-    forecast: {
+    dayRange: {
       date: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kuala_Lumpur' }).format(new Date()),
-      high: state.high,
-      low: state.low
+      high: state.rangeHigh,
+      low: state.rangeLow
     },
     settings: {
       staleMinutes: 20,
       timeZone: 'Asia/Kuala_Lumpur',
       clickThrough: false,
-      forecast: true,
+      range: true,
       notifications: true
     }
   };

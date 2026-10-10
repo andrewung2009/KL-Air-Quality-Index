@@ -14,8 +14,8 @@ const {
 } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { loadConfig, POSITIONS, DEFAULTS, OVERRIDE_KEYS } = require('./defaults');
-const { fetchAQI, fetchForecast, configure: configureFetcher } = require('./fetcher');
+const { loadConfig, POSITIONS, DEFAULTS, OVERRIDE_KEYS, isDayRange, updateDayRange } = require('./defaults');
+const { fetchAQI, configure: configureFetcher } = require('./fetcher');
 
 const LEGACY_STATE_PATH = path.join(__dirname, 'state.json');
 const STATE_PATH = path.join(app.getPath('userData'), 'state.json');
@@ -60,9 +60,8 @@ let lastGood = null;
 let visible = true;
 let clickThrough = false;
 let overrides = {};
-let forecast = null;
+let dayRange = null;
 let lastNotified = null;
-let forecastTask = null;
 
 const initialState = readState();
 const loaded = loadConfig(__dirname, initialState.overrides);
@@ -71,7 +70,7 @@ visible = initialState.visible;
 clickThrough = typeof initialState.clickThrough === 'boolean' ? initialState.clickThrough : config.clickThrough;
 lastGood = initialState.lastGood;
 overrides = initialState.overrides;
-forecast = initialState.forecast;
+dayRange = initialState.dayRange;
 lastNotified = initialState.lastNotified;
 
 function log(...args) {
@@ -96,17 +95,6 @@ function isReading(value) {
   );
 }
 
-function isForecast(value) {
-  return Boolean(
-    value &&
-      typeof value === 'object' &&
-      typeof value.date === 'string' &&
-      /^\d{4}-\d{2}-\d{2}$/.test(value.date) &&
-      Number.isFinite(Number(value.high)) &&
-      Number.isFinite(Number(value.low))
-  );
-}
-
 function isLastNotified(value) {
   return Boolean(value && typeof value === 'object' && typeof value.category === 'string');
 }
@@ -117,7 +105,7 @@ function readState() {
     clickThrough: null,
     lastGood: null,
     overrides: {},
-    forecast: null,
+    dayRange: null,
     lastNotified: null
   };
   let raw = null;
@@ -137,7 +125,7 @@ function readState() {
       visible: parsed.visible !== false,
       clickThrough: typeof parsed.clickThrough === 'boolean' ? parsed.clickThrough : null,
       lastGood: isReading(parsed.lastGood) ? parsed.lastGood : null,
-      forecast: isForecast(parsed.forecast) ? parsed.forecast : null,
+      dayRange: isDayRange(parsed.dayRange) ? parsed.dayRange : null,
       lastNotified: isLastNotified(parsed.lastNotified) ? parsed.lastNotified : null,
       overrides:
         parsed.overrides && typeof parsed.overrides === 'object' && !Array.isArray(parsed.overrides)
@@ -155,7 +143,7 @@ function saveState() {
     fs.mkdirSync(path.dirname(STATE_PATH), { recursive: true });
     fs.writeFileSync(
       STATE_PATH,
-      JSON.stringify({ visible, clickThrough, overrides, lastGood, forecast, lastNotified }, null, 2)
+      JSON.stringify({ visible, clickThrough, overrides, lastGood, dayRange, lastNotified }, null, 2)
     );
   } catch (err) {
     log('save state failed:', err.message);
@@ -167,7 +155,7 @@ function currentSettings() {
     staleMinutes: config.staleMinutes,
     timeZone: config.timeZone,
     clickThrough,
-    forecast: config.forecast,
+    range: config.range,
     notifications: config.notifications
   };
 }
@@ -178,7 +166,7 @@ function buildPayload() {
     error: lastError,
     data: lastGood,
     lastGood,
-    forecast,
+    dayRange,
     settings: currentSettings()
   };
 }
@@ -416,6 +404,13 @@ async function refresh(reason) {
     const data = await fetchAQI({ bypassCircuit });
     lastGood = data;
     lastError = null;
+    if (data.source !== 'est') {
+      const nextRange = updateDayRange(dayRange, data.aqi, todayInTz());
+      if (nextRange !== dayRange) {
+        dayRange = nextRange;
+        log('day range high=' + dayRange.high + ' low=' + dayRange.low);
+      }
+    }
     maybeNotify(data);
     log('ok source=' + data.source, 'aqi=' + data.aqi, 'pm25=' + data.pm25, 'via=' + reason);
     saveState();
@@ -428,7 +423,6 @@ async function refresh(reason) {
     send();
   } finally {
     busy = false;
-    loadForecast();
     if (pendingRefresh) {
       const next = pendingRefresh;
       pendingRefresh = null;
@@ -437,21 +431,12 @@ async function refresh(reason) {
   }
 }
 
-function loadForecast() {
-  if (!config.forecast || forecastTask) return;
-  forecastTask = (async () => {
-    try {
-      const data = await fetchForecast(Date.now() + 15000);
-      forecast = data;
-      saveState();
-      send();
-      log('forecast ok high=' + data.high + ' low=' + data.low);
-    } catch (err) {
-      log('forecast failed:', err.message);
-    } finally {
-      forecastTask = null;
-    }
-  })();
+function todayInTz() {
+  try {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: config.timeZone }).format(new Date());
+  } catch (err) {
+    return new Date().toISOString().slice(0, 10);
+  }
 }
 
 function clockNow() {
@@ -548,7 +533,7 @@ function snapshotConfig() {
     fallbacks: config.fallbacks,
     notifications: config.notifications,
     notifyAbove: config.notifyAbove,
-    forecast: config.forecast
+    range: config.range
   };
 }
 

@@ -8,7 +8,7 @@ const els = {
   aqi: document.getElementById('aqi'),
   category: document.getElementById('category'),
   pm: document.getElementById('pm'),
-  forecast: document.getElementById('forecast'),
+  range: document.getElementById('range'),
   error: document.getElementById('error')
 };
 
@@ -16,7 +16,7 @@ let settings = {
   staleMinutes: 20,
   timeZone: 'Asia/Kuala_Lumpur',
   clickThrough: false,
-  forecast: true,
+  range: true,
   notifications: true
 };
 let lastPayload = null;
@@ -87,20 +87,21 @@ function todayInTimeZone() {
   }
 }
 
-function renderForecast(payload) {
-  const data = payload && payload.forecast;
+function renderRange(payload) {
+  const data = payload && payload.dayRange;
   const show =
-    settings.forecast !== false &&
+    settings.range !== false &&
     data &&
     Number.isFinite(Number(data.high)) &&
     Number.isFinite(Number(data.low)) &&
     data.date === todayInTimeZone();
-  els.forecast.hidden = !show;
+  els.range.hidden = !show;
   if (show) {
-    els.forecast.textContent = '▲' + Math.round(data.high) + ' ▼' + Math.round(data.low);
-    els.forecast.title = "Today's US AQI high " + Math.round(data.high) + ' · low ' + Math.round(data.low);
+    els.range.textContent = '▲' + Math.round(data.high) + ' ▼' + Math.round(data.low);
+    els.range.title =
+      "Observed today: high " + Math.round(data.high) + ' · low ' + Math.round(data.low);
   } else {
-    els.forecast.textContent = '';
+    els.range.textContent = '';
   }
 }
 
@@ -120,7 +121,7 @@ function render(payload) {
   if (payload) lastPayload = payload;
   if (payload && payload.settings) settings = payload.settings;
   applyClickThrough();
-  renderForecast(payload || lastPayload);
+  renderRange(payload || lastPayload);
 
   const data = payload && (payload.data || payload.lastGood);
   const failed = Boolean(payload && payload.ok === false);

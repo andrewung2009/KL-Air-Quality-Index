@@ -15,5 +15,5 @@
   "focusable": false,
   "notifications": true,
   "notifyAbove": 0,
-  "forecast": true
+  "range": true
 }

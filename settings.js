@@ -9,7 +9,7 @@ const els = {
   fallbacks: document.getElementById('fallbacks'),
   refreshMinutes: document.getElementById('refreshMinutes'),
   staleMinutes: document.getElementById('staleMinutes'),
-  forecast: document.getElementById('forecast'),
+  range: document.getElementById('range'),
   position: document.getElementById('position'),
   inset: document.getElementById('inset'),
   width: document.getElementById('width'),
@@ -45,7 +45,7 @@ function setFields(cfg) {
   els.fallbacks.checked = cfg.fallbacks !== false;
   els.refreshMinutes.value = cfg.refreshMinutes;
   els.staleMinutes.value = cfg.staleMinutes;
-  els.forecast.checked = cfg.forecast !== false;
+  els.range.checked = cfg.range !== false;
   els.position.value = cfg.position;
   els.inset.value = cfg.inset;
   els.width.value = cfg.width;
@@ -67,7 +67,7 @@ function collect() {
     fallbacks: els.fallbacks.checked,
     refreshMinutes: Number(els.refreshMinutes.value),
     staleMinutes: Number(els.staleMinutes.value),
-    forecast: els.forecast.checked,
+    range: els.range.checked,
     position: els.position.value,
     inset: Number(els.inset.value),
     width: Number(els.width.value),

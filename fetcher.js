@@ -20,7 +20,6 @@ const USER_AGENTS = [
 
 const MINUTE = 60 * 1000;
 const CHAIN_BUDGET_MS = 90000;
-const FORECAST_BUDGET_MS = 15000;
 const MIN_STEP_MS = 1500;
 const PRIMARY_FAILURE_LIMIT = 3;
 const PRIMARY_SKIP_MS = 30 * MINUTE;
@@ -244,53 +243,6 @@ async function fetchOpenMeteo(deadline = Date.now() + CHAIN_BUDGET_MS) {
   return finalize(current.us_aqi, current.pm25 ?? current.pm2_5, current.time, 'est');
 }
 
-function forecastUrl() {
-  return (
-    'https://air-quality-api.open-meteo.com/v1/air-quality' +
-    '?latitude=' + encodeURIComponent(CONFIG.latitude) +
-    '&longitude=' + encodeURIComponent(CONFIG.longitude) +
-    '&hourly=us_aqi&forecast_days=1&timezone=' + encodeURIComponent(CONFIG.timeZone)
-  );
-}
-
-function todayInConfigZone(now) {
-  try {
-    return new Intl.DateTimeFormat('en-CA', { timeZone: CONFIG.timeZone }).format(now || new Date());
-  } catch (err) {
-    return new Date().toISOString().slice(0, 10);
-  }
-}
-
-async function fetchForecast(deadline = Date.now() + FORECAST_BUDGET_MS) {
-  const res = await fetch(forecastUrl(), { signal: timeoutSignal(deadline, 15000) });
-  if (!res.ok) throw new Error('open-meteo forecast: HTTP ' + res.status);
-  const json = await res.json();
-  const hourly = json && json.hourly;
-  const times = hourly && Array.isArray(hourly.time) ? hourly.time : [];
-  const values = hourly && Array.isArray(hourly.us_aqi) ? hourly.us_aqi : [];
-  const today = todayInConfigZone();
-  let high = null;
-  let low = null;
-  for (let i = 0; i < times.length; i++) {
-    if (String(times[i]).slice(0, 10) !== today) continue;
-    if (values[i] === null || values[i] === undefined) continue;
-    const value = Number(values[i]);
-    if (!Number.isFinite(value)) continue;
-    if (high === null || value > high) high = value;
-    if (low === null || value < low) low = value;
-  }
-  if (high === null || low === null) {
-    throw new Error('open-meteo forecast: no hourly us_aqi for ' + today);
-  }
-  return {
-    date: today,
-    high: Math.round(high),
-    low: Math.round(low),
-    source: 'forecast',
-    fetchedAt: new Date().toISOString()
-  };
-}
-
 async function runStep(label, fn, errors, deadline) {
   if (remainingMs(deadline) < MIN_STEP_MS) {
     errors.push('deadline exceeded before next source');
@@ -341,7 +293,6 @@ async function fetchAQI(options) {
 
 module.exports = {
   fetchAQI,
-  fetchForecast,
   configure,
   classify,
   fetchIqair,
@@ -355,12 +306,9 @@ module.exports = {
 
 if (require.main === module) {
   for (const warning of CONFIG_WARNINGS) console.error('config warning:', warning);
-  Promise.all([
-    fetchAQI(),
-    fetchForecast(Date.now() + FORECAST_BUDGET_MS).catch((err) => ({ error: err.message }))
-  ])
-    .then(([data, forecast]) => {
-      console.log(JSON.stringify({ data, forecast }, null, 2));
+  fetchAQI()
+    .then((data) => {
+      console.log(JSON.stringify({ data }, null, 2));
       process.exit(0);
     })
     .catch((err) => {

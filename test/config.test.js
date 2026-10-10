@@ -29,7 +29,7 @@ test('missing config file falls back to defaults with a warning', () => {
     assert.equal(config.position, DEFAULTS.position);
     assert.equal(config.focusable, false);
     assert.equal(config.notifications, true);
-    assert.equal(config.forecast, true);
+    assert.equal(config.range, true);
     assert.equal(config.notifyAbove, 0);
   });
 });
