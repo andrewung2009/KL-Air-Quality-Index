@@ -17,7 +17,7 @@ const DEFAULTS = {
   fallbacks: true,
   clickThrough: false,
   transparent: false,
-  focusable: true,
+  focusable: false,
   notifications: true,
   notifyAbove: 0,
   forecast: true

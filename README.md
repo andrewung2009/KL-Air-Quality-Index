@@ -132,7 +132,8 @@ Edit `config.json` (restart to apply):
 | `timeZone` | `Asia/Kuala_Lumpur` | Timestamps shown in this zone |
 | `fallbacks` | `true` | Enable the jina / Open-Meteo chain |
 | `clickThrough` | `false` | Start in click-through mode |
-| `transparent` / `focusable` | `false` / `true` | Window rendering options |
+| `transparent` | `false` | Transparent window background |
+| `focusable` | `false` | Widget can take keyboard focus; keep `false` so clicking it never flashes the taskbar over fullscreen apps |
 | `notifications` | `true` | Toast when the AQI category changes |
 | `notifyAbove` | `0` | Also toast at or above this AQI (`0` = off) |
 | `forecast` | `true` | Show today's high/low chip on the card |

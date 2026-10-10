@@ -315,7 +315,6 @@ function popupWidgetMenu() {
     { type: 'separator' },
     { label: 'Quit', click: () => app.quit() }
   ]);
-  if (!win.isFocused()) win.focus();
   log('widget menu opened');
   menu.popup({ window: win });
 }
@@ -506,7 +505,6 @@ function showNotification(data) {
     });
     toast.on('click', () => {
       setVisible(true);
-      if (win && !win.isDestroyed()) win.focus();
     });
     toast.show();
     log('notification shown aqi=' + data.aqi, 'category=' + data.category.label);
