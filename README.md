@@ -3,6 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Electron](https://img.shields.io/badge/Electron-33-blue)
 ![Node](https://img.shields.io/badge/Node-%3E%3D18-green)
+[![CI](https://github.com/andrewung2009/KL-Air-Quality-Index/actions/workflows/ci.yml/badge.svg)](https://github.com/andrewung2009/KL-Air-Quality-Index/actions/workflows/ci.yml)
 
 A tiny always-on-top Windows widget that shows the live **US AQI for Kuala Lumpur** — no API
 key, no account, no browser tab. Data is read from IQAir's public page and refreshed every
@@ -23,6 +24,10 @@ installed files in place. Your settings and cached reading live in `%APPDATA%\aq
 and are left alone.
 
 > Unsigned build — if Windows SmartScreen appears, choose *More info → Run anyway*.
+
+**See it in action** — the card cycles through AQI categories (note the live high/low chip), then opens its settings:
+
+![Widget cycling through AQI categories, then the settings window](assets/demo.gif)
 
 ![Widget screenshot](assets/screenshot.png)
 
@@ -61,8 +66,10 @@ npm start
 Sanity-check the sources and the data pipeline:
 
 ```bash
-npm run check     # syntax-check every source file
-npm run test:fetch
+npm run check      # syntax-check every source file
+npm test           # unit tests (offline)
+npm run test:fetch # live fetch pipeline smoke test
+npm run demo       # regenerate assets/demo.gif
 ```
 
 ## Hotkeys
@@ -191,8 +198,16 @@ aqi-overlay/
 ├── styles.css       # Colour-coded card layout
 ├── config.json      # User configuration
 ├── scripts/
-│   └── build.js     # npm run dist: stage payload + compile the NSIS installer
+│   ├── build.js     # npm run dist: stage payload + compile the NSIS installer
+│   └── make-demo.js # npm run demo: regenerate assets/demo.gif
+├── test/
+│   ├── classify.test.js  # US AQI breakpoint boundaries and colours
+│   ├── config.test.js    # loadConfig validation, clamps and overrides
+│   ├── parse.test.js     # JSON-LD observation parsing, blocked-page detection
+│   ├── forecast.test.js  # 24h high/low filtering by timezone
+│   └── chain.test.js     # IQAir → jina → Open-Meteo source order
 ├── .github/workflows/
+│   ├── ci.yml       # push/PR → unit tests + syntax check
 │   └── release.yml  # tag push → build KL-AQI.exe → publish the release
 ├── packaging/
 │   └── installer.nsi # NSIS script for the one-click KL-AQI.exe release

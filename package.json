@@ -5,10 +5,11 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "check": "node --check defaults.js && node --check main.js && node --check fetcher.js && node --check renderer.js && node --check preload.js && node --check settings.js && node --check debug_capture.js && node --check scripts/build.js",
+    "check": "node --check defaults.js && node --check main.js && node --check fetcher.js && node --check renderer.js && node --check preload.js && node --check settings.js && node --check debug_capture.js && node --check scripts/build.js && node --check scripts/make-demo.js",
     "dist": "npm run check && node scripts/build.js",
     "test": "node --test",
-    "test:fetch": "node fetcher.js"
+    "test:fetch": "node fetcher.js",
+    "demo": "electron scripts/make-demo.js"
   },
   "repository": {
     "type": "git",
@@ -29,7 +30,9 @@
     "node": ">=18"
   },
   "devDependencies": {
-    "electron": "^33.0.0"
+    "electron": "^33.0.0",
+    "gifenc": "^1.0.3",
+    "pngjs": "^7.0.0"
   },
   "allowScripts": {
     "electron@33.4.11": true
