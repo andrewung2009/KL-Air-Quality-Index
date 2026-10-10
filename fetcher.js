@@ -273,6 +273,7 @@ async function fetchForecast(deadline = Date.now() + FORECAST_BUDGET_MS) {
   let low = null;
   for (let i = 0; i < times.length; i++) {
     if (String(times[i]).slice(0, 10) !== today) continue;
+    if (values[i] === null || values[i] === undefined) continue;
     const value = Number(values[i]);
     if (!Number.isFinite(value)) continue;
     if (high === null || value > high) high = value;
