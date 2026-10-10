@@ -7,6 +7,7 @@
     "start": "electron .",
     "check": "node --check defaults.js && node --check main.js && node --check fetcher.js && node --check renderer.js && node --check preload.js && node --check settings.js && node --check debug_capture.js && node --check scripts/build.js",
     "dist": "npm run check && node scripts/build.js",
+    "test": "node --test",
     "test:fetch": "node fetcher.js"
   },
   "repository": {
